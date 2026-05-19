@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GNC // Dead Drop</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #000;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        .container {
+            text-align: center;
+            max-width: 600px;
+            padding: 20px;
+        }
+        .header {
+            margin-bottom: 40px;
+        }
+        .header h1 {
+            color: #00ff00;
+            font-size: 18px;
+            letter-spacing: 3px;
+            margin-bottom: 5px;
+        }
+        .header .sub {
+            color: #00aa00;
+            font-size: 12px;
+            letter-spacing: 2px;
+        }
+        .divider {
+            color: #004400;
+            margin: 20px 0;
+            font-size: 12px;
+            letter-spacing: 5px;
+        }
+        .prompt {
+            color: #00cc00;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        .input-wrapper {
+            margin-bottom: 20px;
+        }
+        #passwordInput {
+            background: #0a0a0a;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            padding: 10px 15px;
+            width: 300px;
+            text-align: center;
+            outline: none;
+            letter-spacing: 2px;
+        }
+        #passwordInput:focus {
+            border-color: #00ff00;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+        }
+        #passwordInput::placeholder {
+            color: #004400;
+        }
+        #submitBtn {
+            background: transparent;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            padding: 8px 30px;
+            cursor: pointer;
+            letter-spacing: 2px;
+            margin-top: 10px;
+        }
+        #submitBtn:hover {
+            background: #00ff00;
+            color: #000;
+        }
+        .error {
+            color: #ff0000;
+            font-size: 14px;
+            margin-top: 15px;
+            visibility: hidden;
+            letter-spacing: 2px;
+        }
+        .error.show {
+            visibility: visible;
+        }
+        .shake {
+            animation: shake 0.5s ease-in-out;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-10px); }
+            40% { transform: translateX(10px); }
+            60% { transform: translateX(-10px); }
+            80% { transform: translateX(10px); }
+        }
+        #flagDisplay {
+            display: none;
+        }
+        .flag-header {
+            color: #ff0000;
+            font-size: 16px;
+            letter-spacing: 3px;
+            margin-bottom: 20px;
+        }
+        .flag-border {
+            color: #00ff00;
+            font-size: 11px;
+            line-height: 1.2;
+            white-space: pre;
+            margin: 20px 0;
+        }
+        .flag-text {
+            color: #00ff00;
+            font-size: 20px;
+            letter-spacing: 3px;
+            padding: 20px;
+            border: 1px solid #00ff00;
+            margin: 20px 0;
+            word-break: break-all;
+            text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+        .flag-message {
+            color: #00aa00;
+            font-size: 13px;
+            margin-top: 20px;
+            line-height: 1.8;
+        }
+        .cursor-blink {
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- PASSWORD FORM -->
+        <div id="loginForm">
+            <div class="header">
+                <h1>GHOSTNET COLLECTIVE</h1>
+                <div class="sub">// DEAD DROP TERMINAL //</div>
+            </div>
+            <div class="divider">═══════════════════</div>
+            <div class="prompt">ENTER ACCESS KEY TO RETRIEVE PACKAGE<span class="cursor-blink">_</span></div>
+            <div class="input-wrapper">
+                <input type="password" id="passwordInput" placeholder="············" autocomplete="off">
+            </div>
+            <button id="submitBtn">DECRYPT</button>
+            <div class="error" id="errorMsg">[ ACCESS DENIED ]</div>
+        </div>
+
+        <!-- FLAG DISPLAY -->
+        <div id="flagDisplay">
+            <div class="flag-header">★ OPERATION SHADOWGATE — COMPROMISED ★</div>
+            <div class="divider">═══════════════════</div>
+<pre class="flag-border">
+ ╔══════════════════════════════════════════╗
+ ║                                          ║
+ ║    CLASSIFIED PAYLOAD DECRYPTED          ║
+ ║    AUTHORIZATION: CONFIRMED              ║
+ ║                                          ║
+ ╚══════════════════════════════════════════╝
+</pre>
+            <div class="flag-text" id="flagText"></div>
+            <div class="flag-message">
+                Congratulations, investigator.<br>
+                You traced the ghost through social media,<br>
+                source code, satellite imagery, and encrypted dead drops.<br><br>
+                OpShadowGate is now exposed.<br><br>
+                <span style="color: #004400;">// GhostNet Collective — 2026 //</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CORRECT_HASH = '51844b44a36d841383d49d48797eb64008c3bbccc7de9ea2e87d94ea15024882';
+        const FLAG = 'AzTU{gh0st_1n_th3_w1nd5_0f_b4ku}';
+
+        async function sha256(message) {
+            const msgBuffer = new TextEncoder().encode(message);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function checkPassword() {
+            const input = document.getElementById('passwordInput').value.toLowerCase().trim();
+            const hash = await sha256(input);
+
+            if (hash === CORRECT_HASH) {
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('flagDisplay').style.display = 'block';
+                typeFlag(FLAG);
+            } else {
+                const err = document.getElementById('errorMsg');
+                const inp = document.getElementById('passwordInput');
+                err.classList.add('show');
+                inp.classList.add('shake');
+                inp.value = '';
+                setTimeout(() => {
+                    inp.classList.remove('shake');
+                }, 500);
+                setTimeout(() => {
+                    err.classList.remove('show');
+                }, 2000);
+            }
+        }
+
+        function typeFlag(text) {
+            const el = document.getElementById('flagText');
+            let i = 0;
+            el.textContent = '';
+            const interval = setInterval(() => {
+                if (i < text.length) {
+                    el.textContent += text[i];
+                    i++;
+                } else {
+                    clearInterval(interval);
+                }
+            }, 50);
+        }
+
+        document.getElementById('submitBtn').addEventListener('click', checkPassword);
+        document.getElementById('passwordInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') checkPassword();
+        });
+    </script>
+</body>
+</html>
