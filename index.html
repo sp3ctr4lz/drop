@@ -189,36 +189,79 @@
     </div>
 
     <script>
-        const CORRECT_HASH = '51844b44a36d841383d49d48797eb64008c3bbccc7de9ea2e87d94ea15024882';
-        const FLAG = 'AzTU{gh0st_1n_th3_w1nd5_0f_b4ku}';
+        // Encrypted payload — flag is AES-256-GCM encrypted with the password.
+        // No plaintext flag, no hash, no password exists in this source code.
+        // Format: base64( salt[16] + iv[12] + authTag[16] + ciphertext )
+        const E = 'WgQ90ixajWx9t9fW9FSXS34DZX27ASix/JQPAJc7he+4oFIbnxtCAeXJ+Box6KoVp8xqQguTN55rAQdpDrraG1asmZvO14lzL9DLkQ==';
 
-        async function sha256(message) {
-            const msgBuffer = new TextEncoder().encode(message);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        function b64ToBytes(b64) {
+            const bin = atob(b64);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            return bytes;
+        }
+
+        async function tryDecrypt(password) {
+            try {
+                const data = b64ToBytes(E);
+                const salt = data.slice(0, 16);
+                const iv = data.slice(16, 28);
+                const authTag = data.slice(28, 44);
+                const ciphertext = data.slice(44);
+
+                // Combine ciphertext + authTag for WebCrypto (it expects them concatenated)
+                const combined = new Uint8Array(ciphertext.length + authTag.length);
+                combined.set(ciphertext);
+                combined.set(authTag, ciphertext.length);
+
+                // Derive key with PBKDF2 (same params as encryption)
+                const keyMaterial = await crypto.subtle.importKey(
+                    'raw',
+                    new TextEncoder().encode(password),
+                    'PBKDF2',
+                    false,
+                    ['deriveKey']
+                );
+
+                const key = await crypto.subtle.deriveKey(
+                    { name: 'PBKDF2', salt: salt, iterations: 100000, hash: 'SHA-256' },
+                    keyMaterial,
+                    { name: 'AES-GCM', length: 256 },
+                    false,
+                    ['decrypt']
+                );
+
+                // Decrypt — wrong password = authTag mismatch = exception thrown
+                const decrypted = await crypto.subtle.decrypt(
+                    { name: 'AES-GCM', iv: iv },
+                    key,
+                    combined
+                );
+
+                return new TextDecoder().decode(decrypted);
+            } catch (e) {
+                return null; // Wrong password — decryption failed
+            }
         }
 
         async function checkPassword() {
             const input = document.getElementById('passwordInput').value.toLowerCase().trim();
-            const hash = await sha256(input);
+            if (!input) return;
 
-            if (hash === CORRECT_HASH) {
+            const result = await tryDecrypt(input);
+
+            if (result) {
                 document.getElementById('loginForm').style.display = 'none';
                 document.getElementById('flagDisplay').style.display = 'block';
-                typeFlag(FLAG);
+                typeFlag(result);
             } else {
                 const err = document.getElementById('errorMsg');
                 const inp = document.getElementById('passwordInput');
                 err.classList.add('show');
                 inp.classList.add('shake');
                 inp.value = '';
-                setTimeout(() => {
-                    inp.classList.remove('shake');
-                }, 500);
-                setTimeout(() => {
-                    err.classList.remove('show');
-                }, 2000);
+                setTimeout(() => { inp.classList.remove('shake'); }, 500);
+                setTimeout(() => { err.classList.remove('show'); }, 2000);
             }
         }
 
